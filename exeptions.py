@@ -87,6 +87,5 @@ try:
     else:
         print("Invalid credentials")
 
-        
 except KeyError as e:
     print("Error: Username does not exist.")

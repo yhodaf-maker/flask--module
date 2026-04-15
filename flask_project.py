@@ -77,13 +77,13 @@ def update_task(task_id):
     body = request.json
     keys = body.keys()
     body_keys = ["title", "completed"]
-
+    
     if not body:
         raise BadRequest("No JSON body provided")
-    
+
     for key in keys:
         if key not in body_keys:
-            raise UnprocessableEntity(f"not allowed to pass:: {key}")
+            raise BadRequest(f"not allowed to pass:: {key}")
         
     if task_id not in [task["id"] for task in tasks]:
         raise NotFound("Task not found")
@@ -120,10 +120,7 @@ def delete_task(task_id):
                 "message": "Task deleted"
             }), 200
 
-    return jsonify({
-        "success": False,
-        "message": "Task not found"
-    }), 404
+    raise NotFound("Task not found")
     
        
 if __name__ == '__main__':
