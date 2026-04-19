@@ -1,8 +1,8 @@
 from flask import request, jsonify, Blueprint
 from werkzeug.exceptions import NotFound, BadRequest, Conflict, UnprocessableEntity
 from models import tasks
-import uuid
-
+from db import db
+from bson import ObjectId
 
 tasks_bp = Blueprint("tasks", __name__)
 
@@ -10,16 +10,27 @@ tasks_bp = Blueprint("tasks", __name__)
 @tasks_bp.route("/tasks", methods=["GET"])
 def get_tasks():
     # Return every task currently stored in memory.
-    return tasks
+    db_tasks = list(db.todo.find())
+    for task in db_tasks:
+        task["_id"] = str(task["_id"])
+    return jsonify({
+        "success": True,
+        "data": db_tasks
+    })
+
 
 
 @tasks_bp.route("/tasks/<task_id>", methods=["GET"])
 def get_task(task_id):
     # Look up a single task and fail with 404 if it does not exist.
-    for task in tasks:
-        if task_id == task["id"]:
-             return task
-    raise NotFound(f"{task_id} not found")
+    task = db.todo.find_one({"_id": task_id})
+    if not task:
+        raise NotFound(f"{task_id} not found")
+    task["_id"] = str(task["_id"])
+    return jsonify({
+        "success": True,
+        "data": task
+    })
 
 
 @tasks_bp.route("/tasks", methods=["POST"])
@@ -38,11 +49,12 @@ def create_task():
 
     # New tasks get a generated id and start as incomplete.
     new_task = {
-    "id": str(uuid.uuid4()),
-    "title": title.strip(),
-    "completed": False
-        }
-    tasks.append(new_task)
+        "title": title.strip(),
+        "completed": False  
+    }
+    
+    db.todo.insert_one(new_task)
+    new_task["_id"] = str(new_task["_id"])
     return jsonify({
         "success": True,
         "data": new_task
@@ -51,40 +63,50 @@ def create_task():
 
 @tasks_bp.route("/tasks/<task_id>", methods=["PUT"])
 def change_task(task_id):
-    # Updates accept only the fields this simple API knows how to change.
+
     data = request.get_json(silent=True)
+
     if not data or not isinstance(data, dict):
-        raise BadRequest("error: update request must contain data")
-    keys = ("title", "completed")
-    data_keys = data.keys()
-    for key in data_keys:
-        if key not in keys:
-            raise BadRequest(f"not allowed to pass {key}")
-    for task in tasks:
-            if task_id == task["id"]:
-                if "title" in data:
-                    if not isinstance(data["title"], str):
-                        raise BadRequest("title must be a string")
-                    if not data["title"].strip():
-                        raise UnprocessableEntity("title must contain text")
-                    # Trim whitespace so stored titles stay clean.
-                    task["title"] = data["title"].strip()
-                if "completed" in data:
-                    if not isinstance(data["completed"], bool):
-                        raise BadRequest("completed must be a boolean")
-                    task["completed"] = data["completed"]
-                return task
-    raise NotFound(f"{task_id} not found")
+        raise BadRequest("request must contain json")
 
+    update_data = {}
 
+    if "title" in data:
+        if not isinstance(data["title"], str):
+            raise BadRequest("title must be a string")
+        if not data["title"].strip():
+            raise UnprocessableEntity("title must contain text")
+        update_data["title"] = data["title"].strip()
+
+    if "completed" in data:
+        if not isinstance(data["completed"], bool):
+            raise BadRequest("completed must be boolean")
+        update_data["completed"] = data["completed"]
+
+    result = db.todo.update_one(
+        {"_id": ObjectId(task_id)},   # 🔥 זה התיקון החשוב
+        {"$set": update_data}
+    )
+
+    if result.matched_count == 0:
+        raise NotFound(f"{task_id} not found")
+
+    updated_task = db.todo.find_one({"_id": ObjectId(task_id)})
+    updated_task["_id"] = str(updated_task["_id"])
+
+    return jsonify({
+        "success": True,
+        "data": updated_task
+    })
+    
 @tasks_bp.route("/tasks/<task_id>", methods=["DELETE"])
 def delete_task(task_id):
     # Delete the matching task and confirm which one was removed.
-    for task in tasks:
-        if task["id"] == task_id:
-            tasks.remove(task)
-
-            return {
-                "Message": f"removed task {task['title']}"
-            }
-    raise NotFound(f"{task_id} not found")
+    result = db.todo.delete_one({"_id": ObjectId(task_id)})
+    if result.deleted_count == 0:
+        raise NotFound(f"{task_id} not found")
+    return jsonify({
+        "success": True,
+        "message": f"removed task {task_id}"
+    }), 200
+    
