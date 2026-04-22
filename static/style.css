@@ -1,173 +1,141 @@
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* General reset and base styling */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: "Segoe UI", system-ui, sans-serif;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  padding: 40px 16px;
+    font-family: "Segoe UI", sans-serif;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px;
 }
 
 .container {
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  width: 100%;
-  max-width: 1000px; /* הגדלנו את הרוחב כדי לתמוך בשני טורים */
-  padding: 36px 32px;
-  animation: fadeIn 0.5s ease;
+    background: #fff;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 1000px;
+    padding: 30px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 }
 
-h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #2d2d2d;
-  margin-bottom: 30px;
-  text-align: center;
+h1 { text-align: center; margin-bottom: 25px; color: #2d2d2d; }
+
+/* Form and UI elements styling */
+#add-form, .edit-mode-container {
+    max-width: 650px;
+    margin: 0 auto 30px;
+    background: #fdfdfd;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #eee;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
-/* Add form */
-#add-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 35px;
-  max-width: 500px; /* הטופס נשאר ממורכז ונוח */
-  margin-left: auto;
-  margin-right: auto;
+.form-row { display: flex; gap: 10px; }
+
+input, select, textarea {
+    padding: 10px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    outline: none;
+    font-family: inherit;
 }
 
-.form-row {
-  display: flex;
-  gap: 10px;
+/* Button styles - Unified theme */
+.btn-main-add, #btn-add-temp-sub, .btn-save, .btn-add-small {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
-#add-form input, #add-form select {
-  padding: 12px 14px;
-  border: 2px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  outline: none;
+#btn-add-temp-sub, .btn-add-small {
+    padding: 0 20px;
+    height: 40px;
 }
 
-#new-title { flex: 2; }
-#new-priority { flex: 1; }
-
-#add-form button {
-  padding: 12px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
+.btn-main-add:hover, #btn-add-temp-sub:hover, .btn-save:hover, .btn-add-small:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(118, 75, 162, 0.3);
 }
 
-/* Task List - Grid System for 2 Columns */
+.btn-cancel { background: #e2e8f0; color: #4a5568; border: none; padding: 12px; border-radius: 8px; cursor: pointer; }
+
+/* Sub-tasks styling in form */
+.add-sub-row { display: flex; gap: 10px; margin-top: 5px; }
+.add-sub-row input { flex: 1; }
+
+.temp-sub-item { font-size: 0.9rem; padding: 4px 10px; display: flex; justify-content: space-between; align-items: center; color: #4a5568; }
+.temp-sub-item button { background: none; border: none; color: #e53e3e; cursor: pointer; }
+
+/* Grid for mission cards */
 #task-list {
-  list-style: none;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); /* יוצר 2 טורים אם יש מקום */
-  gap: 16px;
-}
-
-@media (max-width: 850px) {
-  #task-list {
-    grid-template-columns: 1fr; /* בטלפון חוזר לטור אחד */
-  }
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+    gap: 20px;
+    list-style: none;
 }
 
 .task-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #f9fafc;
-  border: 1px solid #edf2f7;
-  border-radius: 12px;
-  padding: 14px;
-  transition: 0.2s;
-  position: relative;
+    background: #f9fafc;
+    border: 1px solid #edf2f7;
+    border-radius: 12px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
 }
 
-/* Task Numbering */
-.task-number {
-  font-weight: bold;
-  color: #764ba2;
-  margin-right: 10px;
-  min-width: 25px;
-  font-size: 0.9rem;
-}
+.task-main { display: flex; justify-content: space-between; align-items: flex-start; }
+.header-line { display: flex; align-items: center; gap: 10px; flex: 1; }
+.actions { display: flex; gap: 5px; }
 
-.task-item.completed {
-  opacity: 0.7;
+/* Details arrow and summary */
+.sub-details summary {
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 600;
 }
-
-.task-item.completed .title-text {
-  text-decoration: line-through;
-  color: #aaa;
+.sub-details summary::-webkit-details-marker { display: none; }
+.sub-details summary::before {
+    content: '▶';
+    font-size: 0.7rem;
+    margin-right: 8px;
+    color: #764ba2;
+    transition: transform 0.2s;
 }
+.sub-details[open] summary::before { transform: rotate(90deg); }
 
-.checkbox-label {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  flex: 1;
-}
+.no-subs { margin-left: 20px; font-weight: 600; }
 
-.task-content {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
+/* Task details */
+.task-num { color: #764ba2; font-weight: bold; font-size: 0.9rem; }
+.task-body { font-size: 0.85rem; color: #718096; margin-left: 65px; margin-top: 5px; }
 
-.title-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.subtask-list { margin: 10px 0 0 30px; border-left: 2px solid #eee; padding-left: 12px; list-style: none; }
+.subtask-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.completed-text { text-decoration: line-through; color: #a0aec0; }
 
-.title-text { font-weight: 600; }
-.body-text { font-size: 0.85rem; color: #64748b; }
-
-.prio-tag {
-  font-size: 0.65rem;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: bold;
-}
+/* Priority Tags */
+.prio-tag { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
 .prio-1 { background: #d1fae5; color: #065f46; }
 .prio-2 { background: #fef3c7; color: #92400e; }
 .prio-3 { background: #fee2e2; color: #991b1b; }
 
-/* Inline Edit */
-.edit-input, .edit-body, .edit-prio {
-  border: 2px solid #667eea;
-  border-radius: 6px;
-  outline: none;
-}
-.edit-input { width: 100%; margin-bottom: 5px; }
-.edit-body { width: 100%; font-size: 0.85rem; }
+/* Item action buttons */
+.btn-edit { background: #ebf4ff; color: #3182ce; border: none; border-radius: 6px; width: 28px; height: 28px; cursor: pointer; }
+.btn-delete { background: #fee2e2; color: #b91c1c; border: none; border-radius: 6px; width: 28px; height: 28px; cursor: pointer; }
 
-.actions { display: flex; gap: 6px; }
-.actions button {
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.btn-edit { background: #e0e7ff; color: #4338ca; }
-.btn-delete { background: #fee2e2; color: #b91c1c; }
-
-.hidden { display: none; }
-.empty-msg { text-align: center; color: #ccc; grid-column: 1 / -1; }
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+/* Edit mode interior */
+.edit-subs-section { background: #fff; padding: 10px; border-radius: 8px; border: 1px dashed #cbd5e0; margin-top: 5px; }
+.edit-sub-item { display: flex; gap: 5px; margin-bottom: 5px; }
+.edit-sub-item input { flex: 1; padding: 5px; font-size: 0.85rem; }
+.edit-actions { display: flex; gap: 10px; margin-top: 10px; }

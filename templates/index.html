@@ -1,170 +1,251 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Todo App - Grid View</title>
-  <link rel="stylesheet" href="/static/style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Missions</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <div class="container">
-    <h1>My Missions</h1>
+    <div class="container">
+        <h1>My Missions</h1>
 
-    <form id="add-form">
-      <div class="form-row">
-        <input type="text" id="new-title" placeholder="Mission Name..." required autocomplete="off" />
-        <select id="new-priority">
-          <option value="1" selected>🌱 Low</option>
-          <option value="2">⚡ Medium</option>
-          <option value="3">🔥 High</option>
-        </select>
-      </div>
-      <input type="text" id="new-body" placeholder="Description (Optional)..." autocomplete="off" />
-      <button type="submit">Add Mission</button>
-    </form>
-
-    <ul id="task-list"></ul>
-    <p id="empty-msg" class="empty-msg hidden">No missions yet.</p>
-  </div>
-
-  <script>
-    const API = "/tasks";
-    const addForm = document.getElementById("add-form");
-
-    function renderTasks(tasks) {
-      const taskList = document.getElementById("task-list");
-      
-      // מיון: קודם אלו שלא הושלמו, ואז לפי דחיפות גבוהה לנמוכה
-      tasks.sort((a, b) => {
-        if (a.completed !== b.completed) return a.completed ? 1 : -1;
-        return b.priority - a.priority;
-      });
-
-      taskList.innerHTML = "";
-      document.getElementById("empty-msg").classList.toggle("hidden", tasks.length > 0);
-
-      tasks.forEach((task, index) => {
-        const li = document.createElement("li");
-        li.className = "task-item" + (task.completed ? " completed" : "");
-        
-        const prioLabels = { 1: "LOW", 2: "MED", 3: "HIGH" };
-
-        li.innerHTML = `
-          <div class="task-number">#${index + 1}</div>
-          <label class="checkbox-label">
-            <input type="checkbox" class="toggle-cb" ${task.completed ? "checked" : ""} />
-            <div class="task-content">
-              <div class="title-container">
-                <span class="title-text">${escapeHtml(task.title)}</span>
-                <span class="prio-tag prio-${task.priority || 1}">${prioLabels[task.priority] || "LOW"}</span>
-              </div>
-              <div class="body-text">${escapeHtml(task.body || "")}</div>
+        <form id="add-form">
+            <div class="form-row">
+                <input type="text" id="new-title" placeholder="Mission Name..." required autocomplete="off">
+                <select id="new-priority">
+                    <option value="1">🔵 Low</option>
+                    <option value="2">🟡 Medium</option>
+                    <option value="3">🔴 High</option>
+                </select>
             </div>
-          </label>
-          <div class="actions">
-            <button class="btn-edit" title="Edit">&#9998;</button>
-            <button class="btn-delete" title="Delete">&#10005;</button>
-          </div>
-        `;
+            <input type="text" id="new-body" placeholder="Description (Optional)..." autocomplete="off">
+            
+            <div id="subtasks-input-area">
+                <div id="temp-subtasks-list"></div>
+                <div class="add-sub-row">
+                    <input type="text" id="temp-sub-input" placeholder="Add a sub-task...">
+                    <button type="button" id="btn-add-temp-sub">Add</button>
+                </div>
+            </div>
+            <button type="submit" class="btn-main-add">Add Mission</button>
+        </form>
 
-        li.querySelector(".toggle-cb").onchange = () => toggleTask(task._id, !task.completed);
-        li.querySelector(".btn-delete").onclick = () => deleteTask(task._id);
-        li.querySelector(".btn-edit").onclick = () => startInlineEdit(li, task);
+        <ul id="task-list"></ul>
+    </div>
 
-        taskList.appendChild(li);
-      });
-    }
+    <script>
+        const API = "/tasks";
+        let tempSubtasks = [];
+        let editingTaskId = null;
 
-    function startInlineEdit(li, task) {
-      const titleSpan = li.querySelector(".title-text");
-      const prioSpan = li.querySelector(".prio-tag");
-      const bodyDiv = li.querySelector(".body-text");
-      const editBtn = li.querySelector(".btn-edit");
-      
-      const titleInput = document.createElement("input");
-      titleInput.className = "edit-input";
-      titleInput.value = task.title;
-      
-      const prioSelect = document.createElement("select");
-      prioSelect.className = "edit-prio";
-      prioSelect.innerHTML = `
-        <option value="1" ${task.priority == 1 ? 'selected' : ''}>Low</option>
-        <option value="2" ${task.priority == 2 ? 'selected' : ''}>Med</option>
-        <option value="3" ${task.priority == 3 ? 'selected' : ''}>High</option>
-      `;
+        // Add sub-task logic for the main form
+        document.getElementById("btn-add-temp-sub").onclick = () => {
+            const input = document.getElementById("temp-sub-input");
+            if (input.value.trim()) {
+                tempSubtasks.push({ 
+                    id: Date.now().toString(), 
+                    title: input.value.trim(), 
+                    completed: false 
+                });
+                input.value = "";
+                renderTempSubtasks();
+            }
+        };
 
-      const bodyInput = document.createElement("input");
-      bodyInput.className = "edit-body";
-      bodyInput.value = task.body || "";
-      
-      titleSpan.replaceWith(titleInput);
-      prioSpan.replaceWith(prioSelect);
-      bodyDiv.replaceWith(bodyInput);
-      
-      titleInput.focus();
-      editBtn.innerHTML = "💾"; 
-
-      const save = async () => {
-        const newTitle = titleInput.value.trim();
-        const newBody = bodyInput.value.trim();
-        const newPrio = parseInt(prioSelect.value);
-        
-        if (newTitle && (newTitle !== task.title || newBody !== task.body || newPrio !== task.priority)) {
-          await fetch(`${API}/${task._id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ title: newTitle, body: newBody, priority: newPrio })
-          });
+        function renderTempSubtasks() {
+            const list = document.getElementById("temp-subtasks-list");
+            list.innerHTML = tempSubtasks.map((s, i) => `
+                <div class="temp-sub-item">
+                    <span>• ${s.title}</span>
+                    <button type="button" onclick="tempSubtasks.splice(${i},1); renderTempSubtasks();">✕</button>
+                </div>
+            `).join("");
         }
+
+        async function loadTasks() {
+            const res = await fetch(API);
+            const { data } = await res.json();
+            renderTasks(data);
+        }
+
+        function renderTasks(tasks) {
+            const taskList = document.getElementById("task-list");
+            
+            // Keep track of open details elements to prevent closing on refresh
+            const openTaskIds = Array.from(document.querySelectorAll('details[open]'))
+                .map(d => d.closest('.task-item').dataset.id);
+            
+            taskList.innerHTML = "";
+            
+            // Sort: Incomplete high-priority first
+            tasks.sort((a, b) => (a.completed === b.completed ? b.priority - a.priority : a.completed ? 1 : -1));
+
+            tasks.forEach((task, index) => {
+                const li = document.createElement("li");
+                li.className = `task-item ${task.completed ? 'completed' : ''}`;
+                li.dataset.id = task._id;
+                
+                if (editingTaskId === task._id) {
+                    li.innerHTML = renderEditMode(task);
+                } else {
+                    li.innerHTML = renderNormalMode(task, index, openTaskIds.includes(task._id));
+                }
+                
+                taskList.appendChild(li);
+            });
+        }
+
+        function renderNormalMode(task, index, isOpen) {
+            const hasSubs = task.subtasks && task.subtasks.length > 0;
+            const prioNames = { 1: 'LOW', 2: 'MED', 3: 'HIGH' };
+            
+            return `
+                <div class="task-main">
+                    <div class="header-line">
+                        <span class="task-num">#${index + 1}</span>
+                        <input type="checkbox" class="toggle-cb" ${task.completed ? 'checked' : ''} 
+                            onchange="updateTask('${task._id}', {completed: !${task.completed}})">
+                        
+                        ${hasSubs ? `
+                            <details class="sub-details" ${isOpen ? 'open' : ''}>
+                                <summary class="title-text">${task.title}</summary>
+                                <ul class="subtask-list">
+                                    ${task.subtasks.map(st => `
+                                        <li class="subtask-item">
+                                            <input type="checkbox" ${st.completed ? 'checked' : ''} 
+                                                onchange="toggleSub('${task._id}', '${st.id}')">
+                                            <span class="${st.completed ? 'completed-text' : ''}">${st.title}</span>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </details>
+                        ` : `<span class="title-text no-subs">${task.title}</span>`}
+                        
+                        <span class="prio-tag prio-${task.priority}">${prioNames[task.priority]}</span>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-edit" onclick="startEdit('${task._id}')">✎</button>
+                        <button class="btn-delete" onclick="deleteTask('${task._id}')">✕</button>
+                    </div>
+                </div>
+                <div class="task-body">${task.body || ""}</div>
+            `;
+        }
+
+        function renderEditMode(task) {
+            return `
+                <div class="edit-mode-container">
+                    <input type="text" id="edit-title-${task._id}" value="${task.title}" class="edit-input">
+                    <textarea id="edit-body-${task._id}" class="edit-input">${task.body || ""}</textarea>
+                    <select id="edit-prio-${task._id}" class="edit-input">
+                        <option value="1" ${task.priority == 1 ? 'selected' : ''}>🔵 Low</option>
+                        <option value="2" ${task.priority == 2 ? 'selected' : ''}>🟡 Medium</option>
+                        <option value="3" ${task.priority == 3 ? 'selected' : ''}>🔴 High</option>
+                    </select>
+                    <div class="edit-subs-section">
+                        <strong>Edit Sub-tasks:</strong>
+                        <div id="edit-subs-list-${task._id}">
+                            ${(task.subtasks || []).map((st, i) => `
+                                <div class="edit-sub-item">
+                                    <input type="text" value="${st.title}" onchange="updateSubText('${task._id}', ${i}, this.value)">
+                                    <button type="button" onclick="removeSubFromEdit('${task._id}', ${i})">✕</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="add-sub-row">
+                            <input type="text" id="edit-new-sub-${task._id}" placeholder="New sub-task...">
+                            <button type="button" class="btn-add-small" onclick="addSubToEdit('${task._id}')">Add</button>
+                        </div>
+                    </div>
+                    <div class="edit-actions">
+                        <button class="btn-save" onclick="saveEdit('${task._id}')">Save</button>
+                        <button class="btn-cancel" onclick="cancelEdit()">Cancel</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Edit control functions
+        function startEdit(id) { editingTaskId = id; loadTasks(); }
+        function cancelEdit() { editingTaskId = null; loadTasks(); }
+
+        async function saveEdit(id) {
+            const title = document.getElementById(`edit-title-${id}`).value;
+            const body = document.getElementById(`edit-body-${id}`).value;
+            const priority = document.getElementById(`edit-prio-${id}`).value;
+            const res = await fetch(`${API}/${id}`);
+            const task = (await res.json()).data;
+            await updateTask(id, { title, body, priority, subtasks: task.subtasks });
+            editingTaskId = null;
+        }
+
+        async function addSubToEdit(taskId) {
+            const input = document.getElementById(`edit-new-sub-${taskId}`);
+            if (!input.value.trim()) return;
+            const res = await fetch(`${API}/${taskId}`);
+            const task = (await res.json()).data;
+            task.subtasks.push({ id: Date.now().toString(), title: input.value.trim(), completed: false });
+            await updateTask(taskId, { subtasks: task.subtasks });
+        }
+
+        async function removeSubFromEdit(taskId, index) {
+            const res = await fetch(`${API}/${taskId}`);
+            const task = (await res.json()).data;
+            task.subtasks.splice(index, 1);
+            await updateTask(taskId, { subtasks: task.subtasks });
+        }
+
+        async function updateSubText(taskId, index, newText) {
+            const res = await fetch(`${API}/${taskId}`);
+            const task = (await res.json()).data;
+            task.subtasks[index].title = newText;
+            await updateTask(taskId, { subtasks: task.subtasks });
+        }
+
+        async function updateTask(id, data) {
+            await fetch(`${API}/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
+            loadTasks();
+        }
+
+        async function toggleSub(taskId, subId) {
+            const res = await fetch(`${API}/${taskId}`);
+            const task = (await res.json()).data;
+            const updated = task.subtasks.map(s => s.id === subId ? { ...s, completed: !s.completed } : s);
+            await updateTask(taskId, { subtasks: updated });
+        }
+
+        async function deleteTask(id) {
+            if (confirm("Are you sure?")) {
+                await fetch(`${API}/${id}`, { method: "DELETE" });
+                loadTasks();
+            }
+        }
+
+        document.getElementById("add-form").onsubmit = async (e) => {
+            e.preventDefault();
+            const payload = {
+                title: document.getElementById("new-title").value,
+                body: document.getElementById("new-body").value,
+                priority: document.getElementById("new-priority").value,
+                subtasks: tempSubtasks
+            };
+            await fetch(API, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            tempSubtasks = [];
+            e.target.reset();
+            renderTempSubtasks();
+            loadTasks();
+        };
+
         loadTasks();
-      };
-
-      editBtn.onclick = save;
-    }
-
-    async function loadTasks() {
-      const res = await fetch(API);
-      const data = await res.json();
-      renderTasks(data.data);
-    }
-
-    addForm.addEventListener("submit", async e => {
-      e.preventDefault();
-      const title = document.getElementById("new-title").value;
-      const body = document.getElementById("new-body").value;
-      const priority = parseInt(document.getElementById("new-priority").value);
-
-      await fetch(API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, body, priority })
-      });
-      
-      addForm.reset();
-      loadTasks();
-    });
-
-    async function toggleTask(id, completed) {
-      await fetch(`${API}/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ completed })
-      });
-      loadTasks();
-    }
-
-    async function deleteTask(id) {
-      if (confirm("Delete?")) {
-        await fetch(`${API}/${id}`, { method: "DELETE" });
-        loadTasks();
-      }
-    }
-
-    function escapeHtml(str) {
-      return str.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-    }
-
-    loadTasks();
-  </script>
+    </script>
 </body>
 </html>
