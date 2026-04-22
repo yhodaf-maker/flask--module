@@ -2,7 +2,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-    font-family: "Segoe UI", sans-serif;
+    font-family: "Segoe UI", Tahoma, sans-serif;
     background: linear-gradient(135deg, #667eea, #764ba2);
     min-height: 100vh;
     display: flex;
@@ -90,6 +90,17 @@ input, select, textarea {
     padding: 15px;
     display: flex;
     flex-direction: column;
+    
+    /* NEW: Added shadow and smooth transition for hover effect */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+}
+
+/* NEW: Hover effect - lift item and make shadow stronger */
+.task-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
 }
 
 .task-main { display: flex; justify-content: space-between; align-items: flex-start; }
@@ -118,8 +129,58 @@ input, select, textarea {
 
 /* Task details */
 .task-num { color: #764ba2; font-weight: bold; font-size: 0.9rem; }
-.task-body { font-size: 0.85rem; color: #718096; margin-left: 65px; margin-top: 5px; }
 
+/* NEW: Task Body styling with icon */
+.task-body { 
+    font-size: 0.85rem; 
+    color: #718096; 
+    margin-left: 65px; 
+    margin-top: 5px; 
+    display: flex;
+    align-items: center;
+    gap: 6px; /* Space between icon and text */
+}
+
+.body-icon {
+    font-size: 1rem;
+    opacity: 0.7;
+}
+
+.body-text {
+    flex: 1;
+}
+
+/* NEW: Progress Bar Styling */
+.task-progress-wrapper {
+    margin-left: 65px;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.progress-bar-container {
+    flex: 1;
+    height: 8px;
+    background-color: #e2e8f0; /* light gray track */
+    border-radius: 4px;
+    overflow: hidden; /* clip the fill */
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #667eea, #764ba2); /* use app theme colors */
+    border-radius: 4px;
+    transition: width 0.3s ease; /* smooth animation on change */
+}
+
+.progress-text {
+    font-size: 0.75rem;
+    color: #a0aec0;
+    font-weight: bold;
+}
+
+/* Other elements */
 .subtask-list { margin: 10px 0 0 30px; border-left: 2px solid #eee; padding-left: 12px; list-style: none; }
 .subtask-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .completed-text { text-decoration: line-through; color: #a0aec0; }
@@ -138,4 +199,6 @@ input, select, textarea {
 .edit-subs-section { background: #fff; padding: 10px; border-radius: 8px; border: 1px dashed #cbd5e0; margin-top: 5px; }
 .edit-sub-item { display: flex; gap: 5px; margin-bottom: 5px; }
 .edit-sub-item input { flex: 1; padding: 5px; font-size: 0.85rem; }
+.edit-textarea { height: 60px; resize: none; }
+.edit-select { cursor: pointer; }
 .edit-actions { display: flex; gap: 10px; margin-top: 10px; }

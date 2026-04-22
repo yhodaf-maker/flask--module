@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Missions</title>
+    <title>My Missions - Pro Edition</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -98,6 +98,12 @@
 
         function renderNormalMode(task, index, isOpen) {
             const hasSubs = task.subtasks && task.subtasks.length > 0;
+            const subCount = hasSubs ? task.subtasks.length : 0;
+            const doneSubs = hasSubs ? task.subtasks.filter(s => s.completed).length : 0;
+            
+            // Calculate progress percentage
+            const progress = hasSubs ? Math.round((doneSubs / subCount) * 100) : 0;
+            
             const prioNames = { 1: 'LOW', 2: 'MED', 3: 'HIGH' };
             
             return `
@@ -129,7 +135,22 @@
                         <button class="btn-delete" onclick="deleteTask('${task._id}')">✕</button>
                     </div>
                 </div>
-                <div class="task-body">${task.body || ""}</div>
+                
+                ${hasSubs ? `
+                    <div class="task-progress-wrapper">
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" style="width: ${progress}%"></div>
+                        </div>
+                        <span class="progress-text">${doneSubs}/${subCount} (${progress}%)</span>
+                    </div>
+                ` : ''}
+
+                <div class="task-body">
+                    ${task.body ? `
+                        <span class="body-icon">📄</span>
+                        <span class="body-text">${task.body}</span>
+                    ` : ''}
+                </div>
             `;
         }
 
@@ -137,8 +158,8 @@
             return `
                 <div class="edit-mode-container">
                     <input type="text" id="edit-title-${task._id}" value="${task.title}" class="edit-input">
-                    <textarea id="edit-body-${task._id}" class="edit-input">${task.body || ""}</textarea>
-                    <select id="edit-prio-${task._id}" class="edit-input">
+                    <textarea id="edit-body-${task._id}" class="edit-input edit-textarea" placeholder="Description...">${task.body || ""}</textarea>
+                    <select id="edit-prio-${task._id}" class="edit-input edit-select">
                         <option value="1" ${task.priority == 1 ? 'selected' : ''}>🔵 Low</option>
                         <option value="2" ${task.priority == 2 ? 'selected' : ''}>🟡 Medium</option>
                         <option value="3" ${task.priority == 3 ? 'selected' : ''}>🔴 High</option>
@@ -203,6 +224,7 @@
             await updateTask(taskId, { subtasks: task.subtasks });
         }
 
+        // CORE API FUNCTIONS
         async function updateTask(id, data) {
             await fetch(`${API}/${id}`, {
                 method: "PUT",
