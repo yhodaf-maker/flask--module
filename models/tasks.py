@@ -7,14 +7,16 @@ def format_task(task):
         "title": task["title"],
         "body": task.get("body", ""),
         "completed": task.get("completed", False),
-        "priority": task.get("priority", 1)  # Default to 1 (Low) if not exists
+        "priority": task.get("priority", 1),
+        "sub_tasks": task.get("sub_tasks", [])  
     }
 
 # This function defines the initial structure of a new task
-def create_task_model(title, body="", priority=1):
+def create_task_model(title, body="", priority=1, sub_tasks=None):
     return {
         "title": title.strip(),
         "body": body.strip(),
         "priority": priority,
-        "completed": False
+        "completed": False,
+        "sub_tasks": sub_tasks or []  
     }

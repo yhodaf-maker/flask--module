@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Missions - Pro Edition</title>
+    <title>My Missions</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -97,13 +97,7 @@
         }
 
         function renderNormalMode(task, index, isOpen) {
-            const hasSubs = task.subtasks && task.subtasks.length > 0;
-            const subCount = hasSubs ? task.subtasks.length : 0;
-            const doneSubs = hasSubs ? task.subtasks.filter(s => s.completed).length : 0;
-            
-            // Calculate progress percentage
-            const progress = hasSubs ? Math.round((doneSubs / subCount) * 100) : 0;
-            
+            const hasSubs = task.sub_tasks && task.sub_tasks.length > 0;
             const prioNames = { 1: 'LOW', 2: 'MED', 3: 'HIGH' };
             
             return `
@@ -117,7 +111,7 @@
                             <details class="sub-details" ${isOpen ? 'open' : ''}>
                                 <summary class="title-text">${task.title}</summary>
                                 <ul class="subtask-list">
-                                    ${task.subtasks.map(st => `
+                                    ${task.sub_tasks.map(st => `
                                         <li class="subtask-item">
                                             <input type="checkbox" ${st.completed ? 'checked' : ''} 
                                                 onchange="toggleSub('${task._id}', '${st.id}')">
@@ -135,22 +129,7 @@
                         <button class="btn-delete" onclick="deleteTask('${task._id}')">✕</button>
                     </div>
                 </div>
-                
-                ${hasSubs ? `
-                    <div class="task-progress-wrapper">
-                        <div class="progress-bar-container">
-                            <div class="progress-bar-fill" style="width: ${progress}%"></div>
-                        </div>
-                        <span class="progress-text">${doneSubs}/${subCount} (${progress}%)</span>
-                    </div>
-                ` : ''}
-
-                <div class="task-body">
-                    ${task.body ? `
-                        <span class="body-icon">📄</span>
-                        <span class="body-text">${task.body}</span>
-                    ` : ''}
-                </div>
+                <div class="task-body">${task.body || ""}</div>
             `;
         }
 
@@ -158,8 +137,8 @@
             return `
                 <div class="edit-mode-container">
                     <input type="text" id="edit-title-${task._id}" value="${task.title}" class="edit-input">
-                    <textarea id="edit-body-${task._id}" class="edit-input edit-textarea" placeholder="Description...">${task.body || ""}</textarea>
-                    <select id="edit-prio-${task._id}" class="edit-input edit-select">
+                    <textarea id="edit-body-${task._id}" class="edit-input">${task.body || ""}</textarea>
+                    <select id="edit-prio-${task._id}" class="edit-input">
                         <option value="1" ${task.priority == 1 ? 'selected' : ''}>🔵 Low</option>
                         <option value="2" ${task.priority == 2 ? 'selected' : ''}>🟡 Medium</option>
                         <option value="3" ${task.priority == 3 ? 'selected' : ''}>🔴 High</option>
@@ -167,7 +146,7 @@
                     <div class="edit-subs-section">
                         <strong>Edit Sub-tasks:</strong>
                         <div id="edit-subs-list-${task._id}">
-                            ${(task.subtasks || []).map((st, i) => `
+                            ${(task.sub_tasks || []).map((st, i) => `
                                 <div class="edit-sub-item">
                                     <input type="text" value="${st.title}" onchange="updateSubText('${task._id}', ${i}, this.value)">
                                     <button type="button" onclick="removeSubFromEdit('${task._id}', ${i})">✕</button>
@@ -197,7 +176,7 @@
             const priority = document.getElementById(`edit-prio-${id}`).value;
             const res = await fetch(`${API}/${id}`);
             const task = (await res.json()).data;
-            await updateTask(id, { title, body, priority, subtasks: task.subtasks });
+            await updateTask(id, { title, body, priority, sub_tasks: task.sub_tasks });
             editingTaskId = null;
         }
 
@@ -206,25 +185,24 @@
             if (!input.value.trim()) return;
             const res = await fetch(`${API}/${taskId}`);
             const task = (await res.json()).data;
-            task.subtasks.push({ id: Date.now().toString(), title: input.value.trim(), completed: false });
-            await updateTask(taskId, { subtasks: task.subtasks });
+            task.sub_tasks.push({ id: Date.now().toString(), title: input.value.trim(), completed: false });
+            await updateTask(taskId, { sub_tasks: task.sub_tasks });
         }
 
         async function removeSubFromEdit(taskId, index) {
             const res = await fetch(`${API}/${taskId}`);
             const task = (await res.json()).data;
-            task.subtasks.splice(index, 1);
-            await updateTask(taskId, { subtasks: task.subtasks });
+            task.sub_tasks.splice(index, 1);
+            await updateTask(taskId, { sub_tasks: task.sub_tasks });
         }
 
         async function updateSubText(taskId, index, newText) {
             const res = await fetch(`${API}/${taskId}`);
             const task = (await res.json()).data;
-            task.subtasks[index].title = newText;
-            await updateTask(taskId, { subtasks: task.subtasks });
+            task.sub_tasks[index].title = newText;
+            await updateTask(taskId, { sub_tasks: task.sub_tasks });
         }
 
-        // CORE API FUNCTIONS
         async function updateTask(id, data) {
             await fetch(`${API}/${id}`, {
                 method: "PUT",
@@ -237,8 +215,8 @@
         async function toggleSub(taskId, subId) {
             const res = await fetch(`${API}/${taskId}`);
             const task = (await res.json()).data;
-            const updated = task.subtasks.map(s => s.id === subId ? { ...s, completed: !s.completed } : s);
-            await updateTask(taskId, { subtasks: updated });
+            const updated = task.sub_tasks.map(s => s.id === subId ? { ...s, completed: !s.completed } : s);
+            await updateTask(taskId, { sub_tasks: updated });
         }
 
         async function deleteTask(id) {
@@ -254,7 +232,7 @@
                 title: document.getElementById("new-title").value,
                 body: document.getElementById("new-body").value,
                 priority: document.getElementById("new-priority").value,
-                subtasks: tempSubtasks
+                sub_tasks: tempSubtasks
             };
             await fetch(API, {
                 method: "POST",
