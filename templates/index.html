@@ -9,7 +9,7 @@
 <body>
     <div class="container">
         <h1>My Missions</h1>
-        <!-- The form for adding new tasks, including sub-tasks and priority -->
+ 
         <form id="add-form">
             <div class="form-row">
                 <input type="text" id="new-title" placeholder="Mission Name..." required autocomplete="off">
@@ -30,19 +30,29 @@
             </div>
             <button type="submit" class="btn-main-add">Add Mission</button>
         </form>
-
+ 
         <ul id="task-list"></ul>
     </div>
-
+ 
     <script>
+        // Base URL for all API requests to the Flask server
         const API = "/tasks";
+ 
+        // Temporary array holding sub-tasks added before clicking "Add Mission"
+        // Lives only in browser memory - not saved to MongoDB yet
         let tempSubtasks = [];
+ 
+        // Stores the ID of the task currently in edit mode, or null if none
         let editingTaskId = null;
-
-        // Add sub-task logic for the main form
+ 
+        // ------------------- Sub-task input in the main form -------------------
+ 
+        // Listens for a click on the "Add" button next to the sub-task input
         document.getElementById("btn-add-temp-sub").onclick = () => {
             const input = document.getElementById("temp-sub-input");
+            // trim() removes whitespace so the user can't add an empty sub-task
             if (input.value.trim()) {
+                // Date.now() gives a unique number in milliseconds used as a temporary ID
                 tempSubtasks.push({ 
                     id: Date.now().toString(), 
                     title: input.value.trim(), 
@@ -52,9 +62,12 @@
                 renderTempSubtasks();
             }
         };
-
+ 
+        // Draws the temporary sub-task list on screen
         function renderTempSubtasks() {
             const list = document.getElementById("temp-subtasks-list");
+            // map() builds HTML for each sub-task, join() combines them into one string
+            // splice() removes a sub-task by its index in the array
             list.innerHTML = tempSubtasks.map((s, i) => `
                 <div class="temp-sub-item">
                     <span>• ${s.title}</span>
@@ -62,30 +75,38 @@
                 </div>
             `).join("");
         }
-// sending request to server to get tasks and render them on page load and after any update 
+ 
+        // ------------------- Loading and rendering tasks -------------------
+ 
+        // Sends a GET request to the Flask server and fetches all tasks from MongoDB
         async function loadTasks() {
             const res = await fetch(API);
             const { data } = await res.json();
             renderTasks(data);
         }
-// get all tasks and render them with sorting and open details handling
+ 
+        // Receives the task list and draws all the cards on screen
         function renderTasks(tasks) {
             const taskList = document.getElementById("task-list");
             
-            // Keep track of open details elements to prevent closing on refresh
+            // Remembers which tasks are open (sub-tasks visible) before clearing the list
+            // So after a refresh they stay open instead of collapsing
             const openTaskIds = Array.from(document.querySelectorAll('details[open]'))
                 .map(d => d.closest('.task-item').dataset.id);
             
             taskList.innerHTML = "";
             
-            // Sort: Incomplete high-priority first
+            // Sort: incomplete tasks first, within those sort by highest priority
             tasks.sort((a, b) => (a.completed === b.completed ? b.priority - a.priority : a.completed ? 1 : -1));
-
+ 
             tasks.forEach((task, index) => {
                 const li = document.createElement("li");
                 li.className = `task-item ${task.completed ? 'completed' : ''}`;
+                // Stores the task ID on the DOM element so we can reference it later
                 li.dataset.id = task._id;
-                // if in edit mode for this task, render edit form, else render normal view
+                
+                // If this task is being edited - draw the edit form
+                // Otherwise draw the normal card view
                 if (editingTaskId === task._id) {
                     li.innerHTML = renderEditMode(task);
                 } else {
@@ -95,18 +116,22 @@
                 taskList.appendChild(li);
             });
         }
-// checking if task has sub-tasks and rendering accordingly with priority tags and edit/delete buttons
+ 
+        // ------------------- Rendering a normal task card -------------------
+ 
+        // Builds the HTML for a task card in normal view
         function renderNormalMode(task, index, isOpen) {
+            // Checks if sub-tasks exist to decide whether to show the expand arrow
             const hasSubs = task.sub_tasks && task.sub_tasks.length > 0;
             const prioNames = { 1: 'LOW', 2: 'MED', 3: 'HIGH' };
             
-           // Main task line with title, priority, and controls. If there are sub-tasks, use a <details> element to show/hide them
             return `
                 <div class="task-main">
                     <div class="header-line">
-                        <span class="task-num">#${index + 1}</span>// Checkbox to mark task as completed or not, which also updates the server
+                        <span class="task-num">#${index + 1}</span>
                         <input type="checkbox" class="toggle-cb" ${task.completed ? 'checked' : ''} 
                             onchange="updateTask('${task._id}', {completed: !${task.completed}})">
+                        
                         ${hasSubs ? `
                             <details class="sub-details" ${isOpen ? 'open' : ''}>
                                 <summary class="title-text">${task.title}</summary>
@@ -132,7 +157,10 @@
                 <div class="task-body">${task.body || ""}</div>
             `;
         }
-// The edit mode form for a task, which includes inputs for title, body, priority, and sub-tasks, along with save/cancel buttons
+ 
+        // ------------------- Rendering the edit form -------------------
+ 
+        // Builds the HTML for the edit form when the pencil icon is clicked
         function renderEditMode(task) {
             return `
                 <div class="edit-mode-container">
@@ -146,7 +174,6 @@
                     <div class="edit-subs-section">
                         <strong>Edit Sub-tasks:</strong>
                         <div id="edit-subs-list-${task._id}">
-                        <!-- Render existing sub-tasks with inputs for editing and buttons for removing them -->
                             ${(task.sub_tasks || []).map((st, i) => `
                                 <div class="edit-sub-item">
                                     <input type="text" value="${st.title}" onchange="updateSubText('${task._id}', ${i}, this.value)">
@@ -166,44 +193,59 @@
                 </div>
             `;
         }
-
-        // Edit control functions
+ 
+        // ------------------- Edit control functions -------------------
+ 
+        // Enter edit mode - saves the ID and refreshes the screen to show the edit form
         function startEdit(id) { editingTaskId = id; loadTasks(); }
+ 
+        // Cancel edit - resets the ID and refreshes to go back to normal view
         function cancelEdit() { editingTaskId = null; loadTasks(); }
-// save the edit by sending updated data to server and refreshing the task list
+ 
+        // Save edit - pulls all values from the form fields and sends them to the server
         async function saveEdit(id) {
             const title = document.getElementById(`edit-title-${id}`).value;
             const body = document.getElementById(`edit-body-${id}`).value;
             const priority = document.getElementById(`edit-prio-${id}`).value;
+            // First fetches the current task from the server to avoid losing existing sub-tasks
             const res = await fetch(`${API}/${id}`);
             const task = (await res.json()).data;
             await updateTask(id, { title, body, priority, sub_tasks: task.sub_tasks });
             editingTaskId = null;
         }
-// adding a new sub-task in edit mode by fetching current task data, appending the new sub-task, and sending update to server
+ 
+        // ------------------- Managing sub-tasks in edit mode -------------------
+ 
+        // Adds a new sub-task while editing - saves directly to the server immediately
         async function addSubToEdit(taskId) {
             const input = document.getElementById(`edit-new-sub-${taskId}`);
             if (!input.value.trim()) return;
+            // Fetches the current task, pushes the new sub-task into the array, sends it back
             const res = await fetch(`${API}/${taskId}`);
             const task = (await res.json()).data;
             task.sub_tasks.push({ id: Date.now().toString(), title: input.value.trim(), completed: false });
             await updateTask(taskId, { sub_tasks: task.sub_tasks });
         }
-// deleting a subtasks in edit mode by fetching current task data, removing the specific sub-task, and sending update to server
+ 
+        // Removes a sub-task while editing by its index position in the array
         async function removeSubFromEdit(taskId, index) {
             const res = await fetch(`${API}/${taskId}`);
             const task = (await res.json()).data;
             task.sub_tasks.splice(index, 1);
             await updateTask(taskId, { sub_tasks: task.sub_tasks });
         }
-// update text of a subtask by fetching current task data, modifying the specific sub-task's title, and sending update to server
+ 
+        // Updates the text of an existing sub-task when the user changes it in the input field
         async function updateSubText(taskId, index, newText) {
             const res = await fetch(`${API}/${taskId}`);
             const task = (await res.json()).data;
             task.sub_tasks[index].title = newText;
             await updateTask(taskId, { sub_tasks: task.sub_tasks });
         }
-// A general function to send updated task data to the server and refresh the task list after any change (like toggling completion, editing details, etc.)
+ 
+        // ------------------- Server communication -------------------
+ 
+        // Sends a PUT request to update task fields on the server, then refreshes the screen
         async function updateTask(id, data) {
             await fetch(`${API}/${id}`, {
                 method: "PUT",
@@ -212,42 +254,51 @@
             });
             loadTasks();
         }
-// searching for the specific sub-task, toggling its completion status, and sending the updated sub-tasks array to the server
+ 
+        // Toggles a sub-task completed status - finds it by ID and flips the boolean
         async function toggleSub(taskId, subId) {
             const res = await fetch(`${API}/${taskId}`);
             const task = (await res.json()).data;
+            // map() loops over all sub-tasks and only flips the one with the matching ID
             const updated = task.sub_tasks.map(s => s.id === subId ? { ...s, completed: !s.completed } : s);
             await updateTask(taskId, { sub_tasks: updated });
         }
-// sending a delete request to the server for the specific task and refreshing the task list after deletion
+ 
+        // Deletes a task - asks the user for confirmation before sending DELETE to server
         async function deleteTask(id) {
             if (confirm("Are you sure?")) {
                 await fetch(`${API}/${id}`, { method: "DELETE" });
                 loadTasks();
             }
         }
-// sending a POST request to the server with the new task data from the form, including title, body, priority, and any added sub-tasks, then resetting the form and refreshing the task list
+ 
+        // ------------------- Main form submission -------------------
+ 
+        // When the user clicks "Add Mission" - collects all form data and sends to server
         document.getElementById("add-form").onsubmit = async (e) => {
+            // preventDefault stops the page from doing a full reload like a regular form
             e.preventDefault();
             const payload = {
                 title: document.getElementById("new-title").value,
                 body: document.getElementById("new-body").value,
                 priority: document.getElementById("new-priority").value,
+                // Sends the temporary sub-tasks that were collected in the tempSubtasks array
                 sub_tasks: tempSubtasks
             };
-            // Send new task data to server
             await fetch(API, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
-            // Reset form and temp sub-tasks
+            // Reset everything after submission
             tempSubtasks = [];
             e.target.reset();
             renderTempSubtasks();
             loadTasks();
         };
-// Initial load of tasks when the page is opened
+ 
+        // ------------------- Entry point -------------------
+        // First line that runs when the page loads - fetches all tasks and displays them
         loadTasks();
     </script>
 </body>
