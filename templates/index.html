@@ -1,3 +1,6 @@
+Index · HTML
+Copy
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -124,6 +127,12 @@
             // Checks if sub-tasks exist to decide whether to show the expand arrow
             const hasSubs = task.sub_tasks && task.sub_tasks.length > 0;
             const prioNames = { 1: 'LOW', 2: 'MED', 3: 'HIGH' };
+ 
+            // Calculate progress bar values
+            // Counts how many sub-tasks are completed out of the total
+            const total = hasSubs ? task.sub_tasks.length : 0;
+            const done = hasSubs ? task.sub_tasks.filter(s => s.completed).length : 0;
+            const pct = total > 0 ? Math.round((done / total) * 100) : 0;
             
             return `
                 <div class="task-main">
@@ -136,10 +145,10 @@
                             <details class="sub-details" ${isOpen ? 'open' : ''}>
                                 <summary class="title-text">${task.title}</summary>
                                 <ul class="subtask-list">
-                                    ${task.sub_tasks.map(st => `
+                                    ${task.sub_tasks.map((st, i) => `
                                         <li class="subtask-item">
-                                            <input type="checkbox" ${st.completed ? 'checked' : ''} 
-                                                onchange="toggleSub('${task._id}', '${st.id}')">
+                                            <input type="checkbox" ${st.completed ? 'checked' : ''}
+                                                onchange="toggleSub('${task._id}', ${i})">
                                             <span class="${st.completed ? 'completed-text' : ''}">${st.title}</span>
                                         </li>
                                     `).join('')}
@@ -155,6 +164,14 @@
                     </div>
                 </div>
                 <div class="task-body">${task.body || ""}</div>
+                ${hasSubs ? `
+                    <div class="task-progress-wrapper">
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" style="width: ${pct}%"></div>
+                        </div>
+                        <span class="progress-text">${done}/${total}</span>
+                    </div>
+                ` : ''}
             `;
         }
  
@@ -255,13 +272,13 @@
             loadTasks();
         }
  
-        // Toggles a sub-task completed status - finds it by ID and flips the boolean
-        async function toggleSub(taskId, subId) {
+        // Toggles a sub-task completed status - uses index position instead of ID
+        // because some sub-tasks created via Postman don't have an id field
+        async function toggleSub(taskId, index) {
             const res = await fetch(`${API}/${taskId}`);
             const task = (await res.json()).data;
-            // map() loops over all sub-tasks and only flips the one with the matching ID
-            const updated = task.sub_tasks.map(s => s.id === subId ? { ...s, completed: !s.completed } : s);
-            await updateTask(taskId, { sub_tasks: updated });
+            task.sub_tasks[index].completed = !task.sub_tasks[index].completed;
+            await updateTask(taskId, { sub_tasks: task.sub_tasks });
         }
  
         // Deletes a task - asks the user for confirmation before sending DELETE to server
